@@ -8,7 +8,7 @@
 
 
 
-##This is a dot matrix screen management system based on a microcontroller.
+## This is a dot matrix screen management system based on a microcontroller.
 
 We have designed and implemented an LED dot matrix screen display control and management system, which can manage multiple dot matrix screens on the main control computer, set (text mode and graphic mode) and view the display content of each dot matrix screen, switch the display content in different time periods, and control the buzzer attached to each dot matrix screen to ring and display the status according to the current school schedule.
 
