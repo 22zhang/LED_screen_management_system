@@ -1,0 +1,255 @@
+C51 COMPILER V9.59.0.0   MAIN                                                              03/11/2023 16:19:57 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: E:\keil c51\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\mai
+                    -n.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          /*******************************************************************************
+   2          *                 
+   3          *               普中科技
+   4          --------------------------------------------------------------------------------
+   5          * 实 验 名     : 
+   6          * 实验说明     : 
+   7          * 连接方式     : 见接线图
+   8          * 注    意     : 
+   9          *******************************************************************************/
+  10          
+  11          #include <REG51.H>
+  12          
+  13          //--重定义函数变量--//
+  14          #define uchar unsigned char
+  15          #define uint  unsigned int
+  16          #define ulong unsigned long
+  17          #define COUNT 32
+  18          
+  19          sbit buzz=P0^0;    //将单片机的P0.0端口定义为led
+  20          sbit led=P1^0;
+  21          //--定义SPI要使用的 IO--//
+  22          sbit MOSIO = P3^4;
+  23          sbit R_CLK = P3^5;
+  24          sbit S_CLK = P3^6;
+  25          
+  26          //---全局变量声明--//
+  27          ulong column;   //点阵列
+  28          ulong row;      //点阵行
+  29          ulong dt;
+  30          unsigned char buffer[COUNT];    //接收数组
+  31          unsigned char m;
+  32          unsigned char ringsignal;
+  33          unsigned char flag=0;
+  34          unsigned char flagzhen=0;
+  35          unsigned char i=0;
+  36          unsigned char point=0;
+  37          unsigned int buzz_count=0;
+  38          //--点阵显示数组--//
+  39          uchar code tab0[] = 
+  40          {0x00, 0x01, 0x00, 0x02, 0x00, 0x04, 0x00, 0x08,
+  41           0x00, 0x10, 0x00, 0x20, 0x00, 0x40, 0x00, 0x80,
+  42           0x01, 0x00, 0x02, 0x00, 0x04, 0x00, 0x08, 0x00,
+  43           0x10, 0x00, 0x20, 0x00, 0x40, 0x00, 0x80, 0x00};        //Y轴扫描
+  44          
+  45          
+  46          
+  47          //--全局函数声明--//
+  48          void HC595SendData(  uchar BT3, uchar BT2,uchar BT1,uchar BT0);   //显示函数
+  49          unsigned char translation(unsigned char a);             //倒序函数
+  50          void set_buffer(char ch);
+  51          void delay(unsigned int j)
+  52          {
+  53   1         while(j--);
+  54   1      }
+C51 COMPILER V9.59.0.0   MAIN                                                              03/11/2023 16:19:57 PAGE 2   
+
+  55             
+  56          
+  57          void main(void)
+  58          {
+  59   1          int k;                   
+  60   1           led=1; //P0.0端口设置为高电平，不亮
+  61   1          SCON = 0x50;       //REN=1允许串行接受状态，串口工作模式2          
+  62   1          TMOD|= 0x20;      //定时器工作方式2                       
+  63   1          PCON|= 0x80;      //波特率提高一倍                                                    
+  64   1          TH1 = 0xF3;       // //baud*2  /*  波特率4800、数据位8、停止位1。效验位无 (12M)
+  65   1          TL1 = 0xF3; 
+  66   1          TR1  = 1;        //开启定时器1                                                      
+  67   1          ES   = 1;        //开串口中断                  
+  68   1          EA   = 1;        // 开总中断 
+  69   1      
+  70   1                              
+  71   1        while(1)
+  72   1        {       
+  73   2          for(k = 0; k < 16; k++)                   
+  74   2            {  
+  75   3              HC595SendData(~buffer[2*k + 1],~buffer[2*k],tab0[2*k],tab0[2*k + 1]);
+  76   3            } 
+  77   2            if(buzz_count == 1)
+  78   2              buzz=~buzz;
+  79   2            delay(100);
+  80   2        }
+  81   1      }
+  82          
+  83          
+  84          
+  85          
+  86          void serial() interrupt 4
+  87          {
+  88   1        unsigned char RECEIVR_buffer;
+  89   1        if(RI==1)
+  90   1        {
+  91   2          RECEIVR_buffer=SBUF;
+  92   2          RI=0;
+  93   2          TI=0;
+  94   2          
+  95   2          if(flagzhen==1)
+  96   2          { 
+  97   3          if(flag==2&&point==2)
+  98   3          {
+  99   4            buffer[i++]=translation(RECEIVR_buffer); //取8位二进制数的倒序存入buffer数组
+ 100   4            if(i==32) //接收32次
+ 101   4            {
+ 102   5              flag=0;
+ 103   5              point=0;
+ 104   5              flagzhen=0;
+ 105   5              i=0;
+ 106   5            }
+ 107   4          }
+ 108   3          if(flag==3&&point==2)//
+ 109   3          {
+ 110   4            ringsignal=RECEIVR_buffer;
+ 111   4            if(ringsignal==0x31)
+ 112   4            {
+ 113   5              led = 0;
+ 114   5              buzz_count = 1;
+ 115   5          //P0.0端口设置为低电平，灯亮
+ 116   5            }
+C51 COMPILER V9.59.0.0   MAIN                                                              03/11/2023 16:19:57 PAGE 3   
+
+ 117   4           else 
+ 118   4           {buzz_count = 0;
+ 119   5            led = 1;
+ 120   5           }
+ 121   4            flag=0;
+ 122   4            flagzhen=0;
+ 123   4            point=0;
+ 124   4          }
+ 125   3          if(RECEIVR_buffer==0xAB&&point==1)//接收字模
+ 126   3          {
+ 127   4            flag=2;
+ 128   4            point=2;
+ 129   4          }         
+ 130   3          else if(RECEIVR_buffer==0xAC&&point==1)//打铃信息
+ 131   3          {
+ 132   4            flag=3;
+ 133   4            point=2;
+ 134   4          } 
+ 135   3          else if(point==1) 
+ 136   3          {
+ 137   4            flagzhen=0; 
+ 138   4            point=0;
+ 139   4          }
+ 140   3        }
+ 141   2          //if((RECEIVR_buffer==0xFF||RECEIVR_buffer==0xFC)&&point==0)//收到从机1地址
+ 142   2          if((RECEIVR_buffer==0xFD||RECEIVR_buffer==0xFC||RECEIVR_buffer==0xFA||RECEIVR_buffer==0xF9)&&point==0)//
+             -收到从机2地址
+ 143   2          {
+ 144   3            flagzhen=1;
+ 145   3            point=1;
+ 146   3          }
+ 147   2          
+ 148   2        }
+ 149   1      }
+ 150          unsigned char translation(unsigned char a) 
+ 151          {
+ 152   1        unsigned char  b=0,i,temp;
+ 153   1        for(i=0;i<8;i++)
+ 154   1        {
+ 155   2          temp=a&0x01;
+ 156   2          a=a>>1;
+ 157   2          b=b+temp;
+ 158   2          if(i != 7)
+ 159   2            b=b<<1;
+ 160   2        }
+ 161   1        return b;
+ 162   1      }
+ 163          
+ 164          /*******************************************************************************
+ 165          * 函 数 名         : HC595SendData
+ 166          * 函数功能       : 通过595发送四个字节的数据
+ 167          * 输    入         : BT3：第四个595输出数值
+ 168          *                  * BT2: 第三个595输出数值
+ 169          *                  * BT1：第二个595输出数值
+ 170          *                  * BT0：第一个595输出数值
+ 171          * 输    出         : 无
+ 172          *******************************************************************************/
+ 173          
+ 174          void HC595SendData(uchar BT3, uchar BT2,uchar BT1,uchar BT0)
+ 175          {  
+ 176   1        uchar i;
+ 177   1        
+C51 COMPILER V9.59.0.0   MAIN                                                              03/11/2023 16:19:57 PAGE 4   
+
+ 178   1        //--发送第一个字节--//
+ 179   1        for(i=0;i<8;i++)
+ 180   1        {
+ 181   2          MOSIO = BT3 >> 7 ;  //从高位到低位
+ 182   2          BT3 <<= 1;
+ 183   2      
+ 184   2          S_CLK = 0;
+ 185   2          S_CLK = 1;    
+ 186   2        }
+ 187   1      
+ 188   1        //--发送第一个字节--//
+ 189   1        for(i=0;i<8;i++)
+ 190   1        {
+ 191   2          MOSIO = BT2 >>7;    //从高位到低位
+ 192   2          BT2 <<= 1;
+ 193   2      
+ 194   2          S_CLK = 0;
+ 195   2          S_CLK = 1;  
+ 196   2        }
+ 197   1      
+ 198   1        //--发送第一个字节--//
+ 199   1        for(i=0;i<8;i++)
+ 200   1        {
+ 201   2          MOSIO = BT1 >> 7;   //从高位到低位
+ 202   2          BT1 <<= 1;
+ 203   2          S_CLK = 0;
+ 204   2          S_CLK = 1;  
+ 205   2        }
+ 206   1      
+ 207   1        //--发送第一个字节--//
+ 208   1        for(i=0;i<8;i++)
+ 209   1        {
+ 210   2          MOSIO = BT0 >> 7;   //从高位到低位
+ 211   2          BT0 <<= 1;
+ 212   2          S_CLK = 0;
+ 213   2          S_CLK = 1;
+ 214   2        }
+ 215   1         
+ 216   1        //--输出--//
+ 217   1        R_CLK = 0; //set dataline low
+ 218   1        R_CLK = 1; //片选
+ 219   1        R_CLK = 0; //set dataline low
+ 220   1      }
+ 221          
+ 222          
+ 223          
+ 224          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    573    ----
+   CONSTANT SIZE    =     32    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     52       7
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
