@@ -1,3 +1,2 @@
-*.Visual Basic 6.0 linguist-language=c;
-*.html linguist-language=c;
-*.VBA linguist-language=c
+*.frm 6.0 linguist-language=c;
+*.frx linguist-language=c
